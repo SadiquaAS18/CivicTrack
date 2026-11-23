@@ -1,0 +1,75 @@
+.complaint-map-container {
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.04);
+}
+
+.map-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.map-heading h2 {
+  font-size: 20px;
+  color: #202b3c;
+  margin-bottom: 6px;
+}
+
+.map-heading p {
+  font-size: 13px;
+  color: #8993a4;
+}
+
+.map-count {
+  background: #eaf1ff;
+  color: #3977e8;
+  padding: 8px 13px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.complaint-map {
+  width: 100%;
+  height: 480px;
+  border-radius: 10px;
+  border: 1px solid #dce2ec;
+  z-index: 1;
+}
+
+.map-popup strong {
+  color: #202b3c;
+  font-size: 14px;
+}
+
+.map-popup p {
+  font-size: 12px;
+  margin-top: 5px;
+  color: #536174;
+}
+
+.no-map-data {
+  margin-top: 15px;
+  font-size: 13px;
+  color: #8993a4;
+}
+
+@media (max-width: 600px) {
+  .complaint-map-container {
+    padding: 15px;
+  }
+
+  .complaint-map {
+    height: 350px;
+  }
+
+  .map-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

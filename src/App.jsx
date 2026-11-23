@@ -5,7 +5,6 @@ import ComplaintMap from "./components/ComplaintMap";
 import UsersManagement from "./components/Users";
 import Analytics from "./components/Analytics";
 import Settings from "./components/Settings";
-import Login from "./components/Login";
 
 import {
   LayoutDashboard,
@@ -22,8 +21,8 @@ import {
   Clock,
   AlertCircle,
   TrendingUp,
-  LogOut,
   Trash2,
+  Lock,
 } from "lucide-react";
 
 import {
@@ -83,43 +82,45 @@ const chartData = [
 ];
 
 function App() {
-  // LOGIN STATE
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      return JSON.parse(
-        sessionStorage.getItem("civicTrackUser")
-      );
-    } catch {
-      return null;
-    }
-  });
-
   // NAVIGATION
   const [activePage, setActivePage] = useState("Dashboard");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
 
-  const isAdmin = currentUser?.role === "Admin";
+  // SETTINGS AUTHENTICATION
+  const [settingsUnlocked, setSettingsUnlocked] = useState(false);
+  const [showSettingsLogin, setShowSettingsLogin] = useState(false);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
 
-  // LOGIN HANDLER
-  const handleLogin = (user) => {
-    sessionStorage.setItem(
-      "civicTrackUser",
-      JSON.stringify(user)
-    );
+  // SETTINGS LOGIN HANDLER
+  const handleSettingsLogin = (e) => {
+    e.preventDefault();
+    setLoginError("");
 
-    setCurrentUser(user);
-    setActivePage("Dashboard");
+    if (
+      adminEmail.trim().toLowerCase() === "admin@civictrack.com" &&
+      adminPassword === "Admin@123"
+    ) {
+      setSettingsUnlocked(true);
+      setShowSettingsLogin(false);
+      setActivePage("Settings");
+
+      setAdminEmail("");
+      setAdminPassword("");
+    } else {
+      setLoginError(
+        "Invalid administrator email or password."
+      );
+    }
   };
 
-  // LOGOUT HANDLER
-  const handleLogout = () => {
-    sessionStorage.removeItem("civicTrackUser");
-
-    setCurrentUser(null);
+  // SETTINGS LOCK HANDLER
+  const handleSettingsLock = () => {
+    setSettingsUnlocked(false);
     setActivePage("Dashboard");
-    setMenuOpen(false);
   };
 
   // NOTIFICATIONS
@@ -200,8 +201,6 @@ function App() {
 
   // UPDATE COMPLAINT STATUS
   const handleStatusChange = (id, newStatus) => {
-    if (!isAdmin) return;
-
     const complaint = complaints.find(
       (item) => item.id === id
     );
@@ -225,8 +224,6 @@ function App() {
 
   // DELETE COMPLAINT
   const handleDeleteComplaint = (id) => {
-    if (!isAdmin) return;
-
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this complaint?"
     );
@@ -234,6 +231,10 @@ function App() {
     if (confirmDelete) {
       setComplaints((prev) =>
         prev.filter((item) => item.id !== id)
+      );
+
+      addNotification(
+        `Complaint ${id} was deleted.`
       );
     }
   };
@@ -256,21 +257,30 @@ function App() {
     (item) => !item.read
   ).length;
 
-  // ROLE-BASED NAVIGATION
+  // NAVIGATION
   const navigation = [
     { name: "Dashboard", icon: LayoutDashboard },
     { name: "Complaints", icon: FileText },
     { name: "Report an Issue", icon: Plus },
     { name: "Locations", icon: MapPin },
-
-    ...(isAdmin
-      ? [
-          { name: "Users", icon: Users },
-          { name: "Analytics", icon: BarChart3 },
-          { name: "Settings", icon: SettingsIcon },
-        ]
-      : []),
+    { name: "Users", icon: Users },
+    { name: "Analytics", icon: BarChart3 },
+    { name: "Settings", icon: SettingsIcon },
   ];
+
+  // NAVIGATION HANDLER
+  const handleNavigation = (page) => {
+    if (page === "Settings" && !settingsUnlocked) {
+      setShowSettingsLogin(true);
+      setLoginError("");
+      setAdminEmail("");
+      setAdminPassword("");
+    } else {
+      setActivePage(page);
+    }
+
+    setMenuOpen(false);
+  };
 
   // SEARCH
   const filteredComplaints = complaints.filter((item) =>
@@ -300,11 +310,6 @@ function App() {
       : Math.round(
           (resolvedComplaints / totalComplaints) * 100
         );
-
-  // SHOW LOGIN PAGE
-  if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
-  }
 
   return (
     <div className="app-container">
@@ -337,13 +342,18 @@ function App() {
                     ? "nav-item active"
                     : "nav-item"
                 }
-                onClick={() => {
-                  setActivePage(item.name);
-                  setMenuOpen(false);
-                }}
+                onClick={() => handleNavigation(item.name)}
               >
                 <Icon size={19} />
+
                 <span>{item.name}</span>
+
+                {item.name === "Settings" && (
+                  <Lock
+                    size={13}
+                    style={{ marginLeft: "auto" }}
+                  />
+                )}
               </button>
             );
           })}
@@ -352,22 +362,12 @@ function App() {
         {/* PROFILE */}
         <div className="sidebar-bottom">
           <div className="profile">
-            <div className="avatar">
-              {isAdmin ? "AD" : "CT"}
-            </div>
+            <div className="avatar">CT</div>
 
             <div>
-              <strong>{currentUser.name}</strong>
-              <small>{currentUser.role}</small>
+              <strong>CivicTrack User</strong>
+              <small>Public Access</small>
             </div>
-
-            <button
-              className="logout-button"
-              onClick={handleLogout}
-              title="Logout"
-            >
-              <LogOut size={17} />
-            </button>
           </div>
         </div>
 
@@ -388,9 +388,7 @@ function App() {
 
           <div>
             <h2>{activePage}</h2>
-            <p>
-              Welcome back, {currentUser.name}!
-            </p>
+            <p>Welcome to CivicTrack!</p>
           </div>
 
           <div className="topbar-actions">
@@ -508,7 +506,7 @@ function App() {
                       <th>Image</th>
                       <th>Date</th>
                       <th>Status</th>
-                      {isAdmin && <th>Actions</th>}
+                      <th>Actions</th>
                     </tr>
                   </thead>
 
@@ -546,54 +544,42 @@ function App() {
                         <td>{item.date}</td>
 
                         <td>
-                          {isAdmin ? (
-                            <select
-                              className="status-select"
-                              value={item.status}
-                              onChange={(e) =>
-                                handleStatusChange(
-                                  item.id,
-                                  e.target.value
-                                )
-                              }
-                            >
-                              <option value="Pending">
-                                Pending
-                              </option>
+                          <select
+                            className="status-select"
+                            value={item.status}
+                            onChange={(e) =>
+                              handleStatusChange(
+                                item.id,
+                                e.target.value
+                              )
+                            }
+                          >
+                            <option value="Pending">
+                              Pending
+                            </option>
 
-                              <option value="In Progress">
-                                In Progress
-                              </option>
+                            <option value="In Progress">
+                              In Progress
+                            </option>
 
-                              <option value="Resolved">
-                                Resolved
-                              </option>
-                            </select>
-                          ) : (
-                            <span
-                              className={`status ${item.status
-                                .toLowerCase()
-                                .replace(" ", "-")}`}
-                            >
-                              {item.status}
-                            </span>
-                          )}
+                            <option value="Resolved">
+                              Resolved
+                            </option>
+                          </select>
                         </td>
 
-                        {isAdmin && (
-                          <td>
-                            <button
-                              className="delete-button"
-                              onClick={() =>
-                                handleDeleteComplaint(item.id)
-                              }
-                              title="Delete complaint"
-                            >
-                              <Trash2 size={17} />
-                              Delete
-                            </button>
-                          </td>
-                        )}
+                        <td>
+                          <button
+                            className="delete-button"
+                            onClick={() =>
+                              handleDeleteComplaint(item.id)
+                            }
+                            title="Delete complaint"
+                          >
+                            <Trash2 size={17} />
+                            Delete
+                          </button>
+                        </td>
 
                       </tr>
                     ))}
@@ -846,19 +832,110 @@ function App() {
             <ComplaintMap complaints={complaints} />
           )}
 
-          {/* USERS - ADMIN ONLY */}
-          {activePage === "Users" && isAdmin && (
+          {/* USERS */}
+          {activePage === "Users" && (
             <UsersManagement />
           )}
 
-          {/* ANALYTICS - ADMIN ONLY */}
-          {activePage === "Analytics" && isAdmin && (
+          {/* ANALYTICS */}
+          {activePage === "Analytics" && (
             <Analytics complaints={complaints} />
           )}
 
-          {/* SETTINGS - ADMIN ONLY */}
-          {activePage === "Settings" && isAdmin && (
-            <Settings />
+          {/* SETTINGS */}
+          {activePage === "Settings" && settingsUnlocked && (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginBottom: "15px",
+                }}
+              >
+                <button
+                  className="primary-button"
+                  onClick={handleSettingsLock}
+                >
+                  <Lock size={16} />
+                  Lock Settings
+                </button>
+              </div>
+
+              <Settings />
+            </>
+          )}
+
+          {/* SETTINGS LOGIN POPUP */}
+          {showSettingsLogin && (
+            <div className="settings-login-overlay">
+              <div className="settings-login-box">
+
+                <div className="settings-login-icon">
+                  <Lock size={28} />
+                </div>
+
+                <h2>Administrator Login</h2>
+
+                <p>
+                  Authentication is required to access Settings.
+                </p>
+
+                <form onSubmit={handleSettingsLogin}>
+
+                  <label>Email Address</label>
+
+                  <input
+                    type="email"
+                    value={adminEmail}
+                    onChange={(e) =>
+                      setAdminEmail(e.target.value)
+                    }
+                    placeholder="Enter administrator email"
+                    required
+                  />
+
+                  <label>Password</label>
+
+                  <input
+                    type="password"
+                    value={adminPassword}
+                    onChange={(e) =>
+                      setAdminPassword(e.target.value)
+                    }
+                    placeholder="Enter administrator password"
+                    required
+                  />
+
+                  {loginError && (
+                    <p className="settings-login-error">
+                      {loginError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="primary-button"
+                  >
+                    Login
+                  </button>
+
+                  <button
+                    type="button"
+                    className="settings-cancel-button"
+                    onClick={() => {
+                      setShowSettingsLogin(false);
+                      setLoginError("");
+                      setAdminEmail("");
+                      setAdminPassword("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+
+                </form>
+
+              </div>
+            </div>
           )}
 
         </section>

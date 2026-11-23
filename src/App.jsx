@@ -5,6 +5,7 @@ import ComplaintMap from "./components/ComplaintMap";
 import UsersManagement from "./components/Users";
 import Analytics from "./components/Analytics";
 import Settings from "./components/Settings";
+import Login from "./components/Login";
 
 import {
   LayoutDashboard,
@@ -37,12 +38,11 @@ import {
 
 import "./App.css";
 
-// Initial sample complaints
 const initialComplaints = [
   {
     id: "CT001",
     title: "Garbage accumulation",
-    category: "Sanitation",
+    category: "Garbage Collection",
     location: "Vijayanagar",
     date: "09 Nov 2026",
     status: "Pending",
@@ -50,7 +50,7 @@ const initialComplaints = [
   {
     id: "CT002",
     title: "Damaged road",
-    category: "Roads",
+    category: "Road Maintenance",
     location: "Hebbal",
     date: "08 Nov 2026",
     status: "In Progress",
@@ -73,7 +73,6 @@ const initialComplaints = [
   },
 ];
 
-// Sample chart data
 const chartData = [
   { month: "Jun", complaints: 35 },
   { month: "Jul", complaints: 48 },
@@ -84,13 +83,46 @@ const chartData = [
 ];
 
 function App() {
-  // Navigation states
+  // LOGIN STATE
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      return JSON.parse(
+        sessionStorage.getItem("civicTrackUser")
+      );
+    } catch {
+      return null;
+    }
+  });
+
+  // NAVIGATION
   const [activePage, setActivePage] = useState("Dashboard");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
 
-  // Load notifications from localStorage
+  const isAdmin = currentUser?.role === "Admin";
+
+  // LOGIN HANDLER
+  const handleLogin = (user) => {
+    sessionStorage.setItem(
+      "civicTrackUser",
+      JSON.stringify(user)
+    );
+
+    setCurrentUser(user);
+    setActivePage("Dashboard");
+  };
+
+  // LOGOUT HANDLER
+  const handleLogout = () => {
+    sessionStorage.removeItem("civicTrackUser");
+
+    setCurrentUser(null);
+    setActivePage("Dashboard");
+    setMenuOpen(false);
+  };
+
+  // NOTIFICATIONS
   const [notifications, setNotifications] = useState(() => {
     try {
       return (
@@ -103,7 +135,6 @@ function App() {
     }
   });
 
-  // Save notifications whenever they change
   useEffect(() => {
     localStorage.setItem(
       "civicTrackNotifications",
@@ -111,23 +142,21 @@ function App() {
     );
   }, [notifications]);
 
-  // Load complaints from localStorage
+  // COMPLAINTS
   const [complaints, setComplaints] = useState(() => {
     try {
-      const savedComplaints = localStorage.getItem(
+      const saved = localStorage.getItem(
         "civicTrackComplaints"
       );
 
-      return savedComplaints
-        ? JSON.parse(savedComplaints)
+      return saved
+        ? JSON.parse(saved)
         : initialComplaints;
-    } catch (error) {
-      console.error("Error loading complaints:", error);
+    } catch {
       return initialComplaints;
     }
   });
 
-  // Save complaints whenever they change
   useEffect(() => {
     localStorage.setItem(
       "civicTrackComplaints",
@@ -135,7 +164,7 @@ function App() {
     );
   }, [complaints]);
 
-  // Add a new notification
+  // ADD NOTIFICATION
   const addNotification = (message) => {
     const newNotification = {
       id: `${Date.now()}-${Math.random()}`,
@@ -150,7 +179,7 @@ function App() {
     ]);
   };
 
-  // Add a new complaint
+  // ADD COMPLAINT
   const handleAddComplaint = (newComplaint) => {
     const complaint = {
       ...newComplaint,
@@ -169,8 +198,10 @@ function App() {
     setActivePage("Complaints");
   };
 
-  // Update complaint status
+  // UPDATE COMPLAINT STATUS
   const handleStatusChange = (id, newStatus) => {
+    if (!isAdmin) return;
+
     const complaint = complaints.find(
       (item) => item.id === id
     );
@@ -192,20 +223,22 @@ function App() {
     );
   };
 
-  // Delete complaint
+  // DELETE COMPLAINT
   const handleDeleteComplaint = (id) => {
+    if (!isAdmin) return;
+
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this complaint?"
     );
 
     if (confirmDelete) {
       setComplaints((prev) =>
-        prev.filter((complaint) => complaint.id !== id)
+        prev.filter((item) => item.id !== id)
       );
     }
   };
 
-  // Mark notification as read
+  // NOTIFICATION CLICK
   const handleNotificationClick = (notificationId) => {
     setNotifications((prev) =>
       prev.map((item) =>
@@ -219,30 +252,34 @@ function App() {
     setNotificationOpen(false);
   };
 
-  // Count unread notifications
   const unreadCount = notifications.filter(
     (item) => !item.read
   ).length;
 
-  // Sidebar navigation
+  // ROLE-BASED NAVIGATION
   const navigation = [
     { name: "Dashboard", icon: LayoutDashboard },
     { name: "Complaints", icon: FileText },
     { name: "Report an Issue", icon: Plus },
     { name: "Locations", icon: MapPin },
-    { name: "Users", icon: Users },
-    { name: "Analytics", icon: BarChart3 },
-    { name: "Settings", icon: SettingsIcon },
+
+    ...(isAdmin
+      ? [
+          { name: "Users", icon: Users },
+          { name: "Analytics", icon: BarChart3 },
+          { name: "Settings", icon: SettingsIcon },
+        ]
+      : []),
   ];
 
-  // Search complaints
+  // SEARCH
   const filteredComplaints = complaints.filter((item) =>
     `${item.id} ${item.title} ${item.category} ${item.location}`
       .toLowerCase()
       .includes(search.toLowerCase())
   );
 
-  // Dynamic dashboard statistics
+  // STATISTICS
   const totalComplaints = complaints.length;
 
   const pendingComplaints = complaints.filter(
@@ -263,6 +300,11 @@ function App() {
       : Math.round(
           (resolvedComplaints / totalComplaints) * 100
         );
+
+  // SHOW LOGIN PAGE
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app-container">
@@ -307,16 +349,25 @@ function App() {
           })}
         </nav>
 
+        {/* PROFILE */}
         <div className="sidebar-bottom">
           <div className="profile">
-            <div className="avatar">CT</div>
-
-            <div>
-              <strong>Administrator</strong>
-              <small>System Admin</small>
+            <div className="avatar">
+              {isAdmin ? "AD" : "CT"}
             </div>
 
-            <LogOut size={17} />
+            <div>
+              <strong>{currentUser.name}</strong>
+              <small>{currentUser.role}</small>
+            </div>
+
+            <button
+              className="logout-button"
+              onClick={handleLogout}
+              title="Logout"
+            >
+              <LogOut size={17} />
+            </button>
           </div>
         </div>
 
@@ -337,7 +388,9 @@ function App() {
 
           <div>
             <h2>{activePage}</h2>
-            <p>Welcome back! Here's your city overview.</p>
+            <p>
+              Welcome back, {currentUser.name}!
+            </p>
           </div>
 
           <div className="topbar-actions">
@@ -375,10 +428,7 @@ function App() {
 
                   <div className="notification-header">
                     <h3>Notifications</h3>
-
-                    <span>
-                      {unreadCount} unread
-                    </span>
+                    <span>{unreadCount} unread</span>
                   </div>
 
                   {notifications.length > 0 ? (
@@ -402,13 +452,10 @@ function App() {
 
                         <div>
                           <strong>{item.message}</strong>
-
                           <p>{item.date}</p>
 
                           {!item.read && (
-                            <small
-                              style={{ color: "#3977e8" }}
-                            >
+                            <small style={{ color: "#3977e8" }}>
                               New
                             </small>
                           )}
@@ -427,18 +474,17 @@ function App() {
             </div>
 
           </div>
-
         </header>
 
         {/* PAGE CONTENT */}
         <section className="dashboard-content">
 
-          {/* REPORT ISSUE PAGE */}
+          {/* REPORT ISSUE */}
           {activePage === "Report an Issue" && (
             <ReportIssue onSubmit={handleAddComplaint} />
           )}
 
-          {/* COMPLAINTS PAGE */}
+          {/* COMPLAINTS */}
           {activePage === "Complaints" && (
             <div className="dashboard-section">
 
@@ -462,7 +508,7 @@ function App() {
                       <th>Image</th>
                       <th>Date</th>
                       <th>Status</th>
-                      <th>Actions</th>
+                      {isAdmin && <th>Actions</th>}
                     </tr>
                   </thead>
 
@@ -471,12 +517,9 @@ function App() {
                       <tr key={item.id}>
 
                         <td>{item.id}</td>
-
                         <td>{item.title}</td>
-
                         <td>{item.category}</td>
 
-                        {/* LOCATION AND COORDINATES */}
                         <td>
                           {item.location}
 
@@ -488,7 +531,6 @@ function App() {
                           )}
                         </td>
 
-                        {/* COMPLAINT IMAGE */}
                         <td>
                           {item.image ? (
                             <img
@@ -503,45 +545,55 @@ function App() {
 
                         <td>{item.date}</td>
 
-                        {/* STATUS UPDATE */}
                         <td>
-                          <select
-                            className="status-select"
-                            value={item.status}
-                            onChange={(e) =>
-                              handleStatusChange(
-                                item.id,
-                                e.target.value
-                              )
-                            }
-                          >
-                            <option value="Pending">
-                              Pending
-                            </option>
+                          {isAdmin ? (
+                            <select
+                              className="status-select"
+                              value={item.status}
+                              onChange={(e) =>
+                                handleStatusChange(
+                                  item.id,
+                                  e.target.value
+                                )
+                              }
+                            >
+                              <option value="Pending">
+                                Pending
+                              </option>
 
-                            <option value="In Progress">
-                              In Progress
-                            </option>
+                              <option value="In Progress">
+                                In Progress
+                              </option>
 
-                            <option value="Resolved">
-                              Resolved
-                            </option>
-                          </select>
+                              <option value="Resolved">
+                                Resolved
+                              </option>
+                            </select>
+                          ) : (
+                            <span
+                              className={`status ${item.status
+                                .toLowerCase()
+                                .replace(" ", "-")}`}
+                            >
+                              {item.status}
+                            </span>
+                          )}
                         </td>
 
-                        {/* DELETE BUTTON */}
-                        <td>
-                          <button
-                            className="delete-button"
-                            onClick={() =>
-                              handleDeleteComplaint(item.id)
-                            }
-                            title="Delete complaint"
-                          >
-                            <Trash2 size={17} />
-                            Delete
-                          </button>
-                        </td>
+                        {isAdmin && (
+                          <td>
+                            <button
+                              className="delete-button"
+                              onClick={() =>
+                                handleDeleteComplaint(item.id)
+                              }
+                              title="Delete complaint"
+                            >
+                              <Trash2 size={17} />
+                              Delete
+                            </button>
+                          </td>
+                        )}
 
                       </tr>
                     ))}
@@ -558,16 +610,14 @@ function App() {
             </div>
           )}
 
-          {/* DASHBOARD PAGE */}
+          {/* DASHBOARD */}
           {activePage === "Dashboard" && (
             <>
 
-              {/* WELCOME SECTION */}
               <div className="welcome-section">
 
                 <div>
                   <h1>City Dashboard</h1>
-
                   <p>
                     Monitor and manage public issues efficiently.
                   </p>
@@ -625,7 +675,6 @@ function App() {
               {/* CHARTS */}
               <div className="dashboard-grid">
 
-                {/* COMPLAINT CHART */}
                 <div className="panel chart-panel">
 
                   <div className="panel-heading">
@@ -691,7 +740,6 @@ function App() {
                       <i className="dot green-dot"></i>
                       Resolved
                     </span>
-
                     <strong>{resolvedComplaints}</strong>
                   </div>
 
@@ -700,7 +748,6 @@ function App() {
                       <i className="dot orange-dot"></i>
                       Pending
                     </span>
-
                     <strong>{pendingComplaints}</strong>
                   </div>
 
@@ -709,7 +756,6 @@ function App() {
                       <i className="dot purple-dot"></i>
                       In Progress
                     </span>
-
                     <strong>{inProgressComplaints}</strong>
                   </div>
 
@@ -721,10 +767,8 @@ function App() {
               <div className="panel complaints-panel">
 
                 <div className="panel-heading">
-
                   <div>
                     <h3>Recent Complaints</h3>
-
                     <p>
                       Latest public issues reported by citizens
                     </p>
@@ -738,13 +782,11 @@ function App() {
                   >
                     View All
                   </button>
-
                 </div>
 
                 <div className="table-wrapper">
 
                   <table>
-
                     <thead>
                       <tr>
                         <th>Complaint ID</th>
@@ -759,7 +801,6 @@ function App() {
                     <tbody>
                       {filteredComplaints.slice(0, 5).map((item) => (
                         <tr key={item.id}>
-
                           <td>{item.id}</td>
 
                           <td className="issue-name">
@@ -767,9 +808,7 @@ function App() {
                           </td>
 
                           <td>{item.category}</td>
-
                           <td>{item.location}</td>
-
                           <td>{item.date}</td>
 
                           <td>
@@ -781,11 +820,9 @@ function App() {
                               {item.status}
                             </span>
                           </td>
-
                         </tr>
                       ))}
                     </tbody>
-
                   </table>
 
                   {filteredComplaints.length === 0 && (
@@ -797,7 +834,6 @@ function App() {
                 </div>
               </div>
 
-              {/* FOOTER */}
               <footer>
                 © 2026 CivicTrack. Smart solutions for better communities.
               </footer>
@@ -805,34 +841,33 @@ function App() {
             </>
           )}
 
-          {/* LOCATIONS PAGE */}
+          {/* LOCATIONS */}
           {activePage === "Locations" && (
             <ComplaintMap complaints={complaints} />
           )}
 
-          {/* USERS PAGE */}
-          {activePage === "Users" && (
+          {/* USERS - ADMIN ONLY */}
+          {activePage === "Users" && isAdmin && (
             <UsersManagement />
           )}
 
-          {/* ANALYTICS PAGE */}
-          {activePage === "Analytics" && (
+          {/* ANALYTICS - ADMIN ONLY */}
+          {activePage === "Analytics" && isAdmin && (
             <Analytics complaints={complaints} />
           )}
 
-          {/* SETTINGS PAGE */}
-          {activePage === "Settings" && (
+          {/* SETTINGS - ADMIN ONLY */}
+          {activePage === "Settings" && isAdmin && (
             <Settings />
           )}
 
         </section>
-
       </main>
     </div>
   );
 }
 
-// STATISTICS CARD COMPONENT
+// STATISTICS CARD
 function StatCard({ title, value, change, icon, color }) {
   return (
     <div className="stat-card">
@@ -844,14 +879,13 @@ function StatCard({ title, value, change, icon, color }) {
       <p>{title}</p>
 
       <div className="stat-bottom">
-
         <h2>{value}</h2>
 
         <span>
           <TrendingUp size={14} /> {change}
         </span>
-
       </div>
+
     </div>
   );
 }

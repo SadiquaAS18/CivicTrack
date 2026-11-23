@@ -684,3 +684,19 @@ footer {
   color: #64748b;
   font-size: 13px;
 }
+.logout-button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.logout-button:hover {
+  color: #3977e8;
+  background: #edf3ff;
+}
